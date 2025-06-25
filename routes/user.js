@@ -5,7 +5,7 @@ const pool = require('../db');
 
 router.get('/user/:email', async (req, res) => {
   const email = req.params.email;
-  console.log(email)
+
   try {
     const result = await pool.query(`SELECT * FROM users WHERE email = $1`, [email]);
     res.json(result.rows[0]);
