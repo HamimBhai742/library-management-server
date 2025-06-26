@@ -43,15 +43,31 @@ router.get('/transactions', async (req, res) => {
 
 router.put('/return/:id', async (req, res) => {
   const { id } = req.params;
+  const { status, return_date, book_id } = req.body;
   try {
-    await pool.query(
-      `UPDATE transactions SET return_date = CURRENT_DATE, status = 'returned' WHERE transaction_id = $1`,
-      [id]
-    );
-    res.status(200).json({ message: 'Book returned successfully' });
+    const query = `
+      UPDATE transactions
+      SET return_date = $1,
+          status = $2
+      WHERE transaction_id = $3
+      RETURNING *;
+    `;
+
+    const re = `UPDATE books SET available_copies = available_copies + 1 WHERE book_id = $1 RETURNING *;`;
+    const result = await pool.query(query, [return_date, status, id]);
+    const result1 = await pool.query(re, [book_id]);
+    if (result.rowCount === 0) {
+      return res.status(404).json({ message: 'Transaction not found' });
+    }
+
+    res.json({
+      message: 'Transaction updated successfully',
+      updatedTransaction: result.rows[0],
+      updateAvalilCopy: result1.rows[0],
+    });
   } catch (error) {
-    console.error('Error updating return:', error);
-    res.status(500).json({ error: 'Failed to return book' });
+    console.error('Error updating transaction:', error);
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
